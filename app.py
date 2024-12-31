@@ -9,7 +9,7 @@ import plotly.express as px
 st.set_page_config(page_title="RealTime Dashboard", layout="wide")
 
 # PostgreSQL connection details
-DB_HOST = "https://dirty-bars-rule.loca.lt"
+DB_HOST = "dirty-bars-rule.loca.lt"
 DB_PORT = 5433  # Updated port
 DB_NAME = "postgres"
 DB_USER = "postgres"
