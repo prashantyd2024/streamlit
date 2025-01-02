@@ -54,7 +54,7 @@ def fetch_data(selected_minutes):
         # Query to get calls in the selected time range
         kpi_query = """
         SELECT sum(calls) AS calls_in_range
-        FROM pyd.real_time
+        FROM streaming.real_time
         WHERE date >= %s
         """
         
@@ -69,7 +69,7 @@ def fetch_data(selected_minutes):
         # Query to fetch data for the line chart
         line_chart_query = """
         SELECT date, calls
-        FROM pyd.real_time
+        FROM streaming.real_time
         WHERE date >= %s
         """
         
