@@ -1,19 +1,15 @@
-import psycopg2
 import pandas as pd
 import streamlit as st
 from datetime import datetime, timedelta
 import time
 import plotly.express as px
+from sqlitecloud import connect  # Correct import for SQLite Cloud
 
 # Set page configuration for a wider layout
 st.set_page_config(page_title="RealTime Dashboard", layout="wide")
 
-# PostgreSQL connection details
-DB_HOST = "10.200.36.144"
-DB_PORT = 5432  # Updated port
-DB_NAME = "superset"
-DB_USER = "postgres"
-DB_PASSWORD = "postgres"
+# SQLite Cloud connection details
+DB_CONNECTION_STRING = "sqlitecloud://cpqaniphnz.sqlite.cloud:8860/real_time?apikey=mXuVdgxgvcPxVZwCNbU51zrtfxZVQdA2RWhpdwXhfs4"
 
 # Streamlit app
 st.title("RealTime Dashboard Using Streamlit")
@@ -25,7 +21,7 @@ with col1:
     # Dropdown filter for time range in the smaller column
     time_range = st.selectbox(
         "Select Time Range",
-        options=["1 minute", "5 minutes", "10 minutes", "30 minutes","1 hour"],
+        options=["1 minute", "5 minutes", "10 minutes", "30 minutes", "1 hour"],
         index=1
     )
 
@@ -33,16 +29,12 @@ with col1:
 time_mapping = {"1 minute": 1, "5 minutes": 5, "10 minutes": 10, "30 minutes": 30, "1 hour": 60}
 selected_minutes = time_mapping[time_range]
 
-# Function to connect to PostgreSQL and fetch data
+# Function to connect to SQLite and fetch data
 def fetch_data(selected_minutes):
     try:
-        conn = psycopg2.connect(
-            host=DB_HOST,
-            port=DB_PORT,
-            database=DB_NAME,
-            user=DB_USER,
-            password=DB_PASSWORD
-        )
+        # Connect to SQLite Cloud database using the correct connect method
+        conn = connect(DB_CONNECTION_STRING)
+        cursor = conn.cursor()
 
         # Current time and time range based on the selection
         now = datetime.now()
@@ -54,38 +46,38 @@ def fetch_data(selected_minutes):
         # Query to get calls in the selected time range
         kpi_query = """
         SELECT sum(calls) AS calls_in_range
-        FROM streaming.real_time
-        WHERE date >= %s
+        FROM stream
+        WHERE date >= ?
         """
-        
+
         # Fetch calls in the selected range
-        kpi_df = pd.read_sql_query(kpi_query, conn, params=[start_time_str])
-        calls_in_range = kpi_df['calls_in_range'][0]
-        
-        # Handle cases where no data is returned
-        if pd.isna(calls_in_range):
-            calls_in_range = 0
+        cursor.execute(kpi_query, (start_time_str,))
+        result = cursor.fetchone()
+        calls_in_range = result[0] if result[0] is not None else 0
 
         # Query to fetch data for the line chart
         line_chart_query = """
         SELECT date, calls
-        FROM streaming.real_time
-        WHERE date >= %s
+        FROM stream
+        WHERE date >= ?
         """
         
         # Fetch data for the line chart
-        df = pd.read_sql_query(line_chart_query, conn, params=[start_time_str])
-        
+        cursor.execute(line_chart_query, (start_time_str,))
+        rows = cursor.fetchall()
+        df = pd.DataFrame(rows, columns=["date", "calls"])
+
         # Close the connection
         conn.close()
 
         # Format the 'date' column to show time in minute:second format
-        df['time_formatted'] = pd.to_datetime(df['date']).dt.strftime('%M:%S')
-        
+        if not df.empty:
+            df['time_formatted'] = pd.to_datetime(df['date']).dt.strftime('%M:%S')
+
         return int(calls_in_range), df
 
     except Exception as e:
-        st.error(f"Error connecting to PostgreSQL: {e}")
+        st.error(f"Error connecting to SQLite: {e}")
         return 0, None  # Return default values if an error occurs
 
 # Fetch data based on the selected time range
@@ -115,7 +107,7 @@ if df is not None and not df.empty:
 else:
     st.write("No data available for the selected time range.")
 
-# Real-time updates by rerunning the script every minute
+# Real-time updates by rerunning the script every second
 time.sleep(5)  # Adjust sleep time if needed
 
 # Trigger a rerun of the Streamlit app
