@@ -37,7 +37,7 @@ def fetch_data(selected_minutes):
         cursor = conn.cursor()
 
         # Current time and time range based on the selection
-        now = datetime.now()
+        now = datetime.utcnow() + timedelta(hours=5, minutes=30)  # Adjust UTC to IST (UTC+5:30)
         start_time = now - timedelta(minutes=selected_minutes)
 
         # Convert to string format for SQL compatibility
@@ -47,7 +47,7 @@ def fetch_data(selected_minutes):
         kpi_query = """
         SELECT sum(calls) AS calls_in_range
         FROM stream
-        WHERE date >= ?
+        WHERE datetime(date, 'localtime') >= ?
         """
 
         # Fetch calls in the selected range
@@ -57,11 +57,11 @@ def fetch_data(selected_minutes):
 
         # Query to fetch data for the line chart
         line_chart_query = """
-        SELECT date, calls
+        SELECT datetime(date, 'localtime') as date, calls
         FROM stream
-        WHERE date >= ?
+        WHERE datetime(date, 'localtime') >= ?
         """
-        
+
         # Fetch data for the line chart
         cursor.execute(line_chart_query, (start_time_str,))
         rows = cursor.fetchall()
